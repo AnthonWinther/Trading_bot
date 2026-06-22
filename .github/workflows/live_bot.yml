@@ -1,0 +1,43 @@
+name: Live Paper Trading Bot
+
+on:
+  schedule:
+    # Runs every 10 minutes
+    # GitHub Actions uses cron syntax: minute hour day month weekday
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    # This allows you to trigger the bot manually from GitHub's website
+    # useful for testing without waiting for the schedule
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest  # GitHub provides a fresh Linux machine each run
+
+    steps:
+      # Step 1: Check out the repository so the runner can access your files
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python 3.9
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # Step 3: Install the requests library (only dependency)
+      - name: Install dependencies
+        run: pip install requests
+
+      # Step 4: Run the live bot
+      - name: Run live bot
+        run: python live_bot.py
+
+      # Step 5: Commit and push the updated live_state.json back to the repo
+      # This is how the bot remembers its portfolio between runs
+      - name: Save state back to repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add live_state.json
+          git diff --staged --quiet || git commit -m "Update live state [$(date -u '+%Y-%m-%d %H:%M:%S') UTC]"
+          git push
