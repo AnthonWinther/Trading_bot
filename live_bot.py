@@ -370,17 +370,11 @@ def send_trade_alert(symbol, action, signal_price, execution_price, portfolio_va
     pnl_pct_str  = f"+{round(pnl_pct, 2)}%" if pnl_pct >= 0 else f"{round(pnl_pct, 2)}%"
 
     message = (
-        f"{action_emoji} *TRADE EXECUTED — {symbol}*
-
-"
-        f"Action: *{action}*
-"
-        f"Signal price: {round(signal_price, 4)} USDT
-"
-        f"Execution price: {round(execution_price, 4)} USDT
-"
-        f"Portfolio value: {round(portfolio_value, 2)} USDT
-"
+        f"{action_emoji} *TRADE EXECUTED - {symbol}*\n\n"
+        f"Action: *{action}*\n"
+        f"Signal price: {round(signal_price, 4)} USDT\n"
+        f"Execution price: {round(execution_price, 4)} USDT\n"
+        f"Portfolio value: {round(portfolio_value, 2)} USDT\n"
         f"P/L: {pnl_str} USDT ({pnl_pct_str})"
     )
     send_telegram(message)
