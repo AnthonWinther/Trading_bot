@@ -30,9 +30,9 @@ SLIPPAGE_RATE = 0.0005   # 0.05% per trade
 STARTING_QUOTE_BALANCE = 1000.0
 STARTING_BASE_BALANCE  = 0.0
 
-# State file — portfolio balances are saved here after every tick
-# so the bot remembers its positions between runs
-STATE_FILE = "live_state.json"
+# File paths
+STATE_FILE  = "live_state.json"   # Portfolio balances, persisted between runs
+STATUS_FILE = "STATUS.md"         # Human-readable status, shown on GitHub
 
 
 # =============================================================================
@@ -82,31 +82,49 @@ def get_close_prices(candles):
 # SIGNAL GENERATION
 # =============================================================================
 
-def generate_breakout_signal(close_prices):
+def get_breakout_details(close_prices):
     """
-    Generate a BUY, SELL, or HOLD signal based on momentum breakout.
+    Calculate the breakout signal and return full details:
+    - signal: BUY, SELL, or HOLD
+    - current_price: the latest close
+    - window_high: highest price in the lookback window
+    - window_low: lowest price in the lookback window
+    - reason: human-readable explanation of the decision
 
-    BUY  when current price > highest close in the last BREAKOUT_PERIOD candles
-    SELL when current price < lowest close in the last BREAKOUT_PERIOD candles
-    HOLD otherwise
-
-    The current candle is excluded from the window so we are not
-    comparing the price to itself.
+    Returns all details so we can use them in both the terminal
+    output and the STATUS.md file.
     """
     if len(close_prices) < BREAKOUT_PERIOD + 1:
-        return "HOLD"
+        return {
+            "signal":        "HOLD",
+            "current_price": close_prices[-1],
+            "window_high":   None,
+            "window_low":    None,
+            "reason":        "Not enough candles yet"
+        }
 
     current_price     = close_prices[-1]
     window            = close_prices[-(BREAKOUT_PERIOD + 1):-1]
-    highest_in_window = max(window)
-    lowest_in_window  = min(window)
+    window_high       = max(window)
+    window_low        = min(window)
 
-    if current_price > highest_in_window:
-        return "BUY"
-    elif current_price < lowest_in_window:
-        return "SELL"
+    if current_price > window_high:
+        signal = "BUY"
+        reason = f"Price {round(current_price, 4)} broke above {BREAKOUT_PERIOD}-candle high of {round(window_high, 4)}"
+    elif current_price < window_low:
+        signal = "SELL"
+        reason = f"Price {round(current_price, 4)} broke below {BREAKOUT_PERIOD}-candle low of {round(window_low, 4)}"
     else:
-        return "HOLD"
+        signal = "HOLD"
+        reason = f"Price {round(current_price, 4)} within range ({round(window_low, 4)} — {round(window_high, 4)})"
+
+    return {
+        "signal":        signal,
+        "current_price": current_price,
+        "window_high":   window_high,
+        "window_low":    window_low,
+        "reason":        reason
+    }
 
 
 # =============================================================================
@@ -162,8 +180,8 @@ def simulate_trade(signal, current_price, quote_balance, base_balance, symbol_en
 
     Returns updated quote_balance, base_balance, and a description of what happened.
     """
-    base  = symbol_entry["base"]
-    quote = symbol_entry["quote"]
+    base         = symbol_entry["base"]
+    quote        = symbol_entry["quote"]
     action_taken = None
 
     if signal == "BUY" and quote_balance > 0:
@@ -173,7 +191,7 @@ def simulate_trade(signal, current_price, quote_balance, base_balance, symbol_en
         amount_after_fee = quote_balance * (1 - FEE_RATE)
         base_balance     = amount_after_fee / execution_price
         quote_balance    = 0.0
-        action_taken     = f"BUY  | Bought {round(base_balance, 6)} {base} at {round(execution_price, 4)} {quote}"
+        action_taken     = f"BUY — bought {round(base_balance, 6)} {base} at {round(execution_price, 4)} {quote}"
 
     elif signal == "SELL" and base_balance > 0:
         # Apply slippage — price moves slightly against us when selling
@@ -182,9 +200,82 @@ def simulate_trade(signal, current_price, quote_balance, base_balance, symbol_en
         # Apply fee — deduct from proceeds
         quote_balance   = gross_quote * (1 - FEE_RATE)
         base_balance    = 0.0
-        action_taken    = f"SELL | Sold for {round(quote_balance, 4)} {quote} at {round(execution_price, 4)} {quote}"
+        action_taken    = f"SELL — sold for {round(quote_balance, 4)} {quote} at {round(execution_price, 4)} {quote}"
 
     return quote_balance, base_balance, action_taken
+
+
+# =============================================================================
+# STATUS FILE
+# =============================================================================
+
+def save_status(timestamp, symbol_statuses):
+    """
+    Write a human-readable STATUS.md file that gets committed back to GitHub.
+    Anyone visiting the repo can see exactly what the bot is doing right now.
+
+    symbol_statuses is a list of dicts, one per symbol, containing all the
+    details needed to build a clear status block.
+    """
+    lines = []
+    lines.append("# Live Bot Status")
+    lines.append("")
+    lines.append(f"**Last updated:** {timestamp} UTC")
+    lines.append("")
+    lines.append(f"**Interval:** {INTERVAL} | **Breakout period:** {BREAKOUT_PERIOD} candles | **Fee:** {FEE_RATE*100}% | **Slippage:** {SLIPPAGE_RATE*100}%")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    for s in symbol_statuses:
+        symbol          = s["symbol"]
+        base            = s["base"]
+        quote           = s["quote"]
+        current_price   = s["current_price"]
+        signal          = s["signal"]
+        reason          = s["reason"]
+        quote_balance   = s["quote_balance"]
+        base_balance    = s["base_balance"]
+        portfolio_value = s["portfolio_value"]
+        pnl             = s["pnl"]
+        pnl_pct         = s["pnl_pct"]
+        trade_count     = s["trade_count"]
+        action_taken    = s["action_taken"]
+
+        # Signal emoji for quick visual scan
+        if signal == "BUY":
+            signal_icon = "🟢 BUY"
+        elif signal == "SELL":
+            signal_icon = "🔴 SELL"
+        else:
+            signal_icon = "⚪ HOLD"
+
+        # P/L colour indicator
+        pnl_display = f"+{round(pnl, 2)}" if pnl >= 0 else str(round(pnl, 2))
+        pnl_pct_display = f"+{round(pnl_pct, 2)}%" if pnl_pct >= 0 else f"{round(pnl_pct, 2)}%"
+
+        lines.append(f"## {symbol}")
+        lines.append("")
+        lines.append(f"| | |")
+        lines.append(f"|---|---|")
+        lines.append(f"| **Current price** | {round(current_price, 4)} {quote} |")
+        lines.append(f"| **Signal** | {signal_icon} |")
+        lines.append(f"| **Reason** | {reason} |")
+        if action_taken:
+            lines.append(f"| **Last action** | {action_taken} |")
+        lines.append(f"| **{quote} balance** | {round(quote_balance, 2)} |")
+        lines.append(f"| **{base} balance** | {round(base_balance, 6)} |")
+        lines.append(f"| **Portfolio value** | {round(portfolio_value, 2)} {quote} |")
+        lines.append(f"| **P/L** | {pnl_display} {quote} ({pnl_pct_display}) |")
+        lines.append(f"| **Total trades** | {trade_count} |")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    lines.append("*This file is auto-generated every 10 minutes by the live trading bot.*")
+
+    with open(STATUS_FILE, "w") as f:
+        f.write("\n".join(lines))
 
 
 # =============================================================================
@@ -197,17 +288,20 @@ def run_tick():
     1. Load current portfolio state
     2. For each symbol:
        a. Fetch latest candles
-       b. Generate a signal
+       b. Get breakout signal and details
        c. Simulate a trade if signal is actionable
-       d. Print status
+       d. Print status to terminal
     3. Save updated state
+    4. Write STATUS.md for GitHub visibility
     """
-    now   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now   = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     state = load_state()
 
     print("=" * 60)
-    print(f"LIVE BOT TICK — {now}")
+    print(f"LIVE BOT TICK — {now} UTC")
     print("=" * 60)
+
+    symbol_statuses = []
 
     for entry in SYMBOLS:
         symbol = entry["symbol"]
@@ -219,13 +313,15 @@ def run_tick():
             raw_candles       = get_latest_candles(symbol)
             formatted_candles = [format_candle(c) for c in raw_candles]
             close_prices      = get_close_prices(formatted_candles)
-            current_price     = close_prices[-1]
         except Exception as e:
             print(f"{symbol} | ERROR fetching data: {e}")
             continue
 
-        # 2. Generate signal
-        signal = generate_breakout_signal(close_prices)
+        # 2. Get signal and full breakout details
+        details       = get_breakout_details(close_prices)
+        signal        = details["signal"]
+        current_price = details["current_price"]
+        reason        = details["reason"]
 
         # 3. Load current balances for this symbol
         quote_balance = state[symbol]["quote_balance"]
@@ -243,25 +339,49 @@ def run_tick():
         state[symbol]["quote_balance"] = quote_balance
         state[symbol]["base_balance"]  = base_balance
 
-        # 6. Calculate current portfolio value
+        # 6. Calculate portfolio value and P/L
         portfolio_value = quote_balance + (base_balance * current_price)
+        pnl             = portfolio_value - STARTING_QUOTE_BALANCE
+        pnl_pct         = (pnl / STARTING_QUOTE_BALANCE) * 100
 
-        # 7. Print status for this symbol
+        # 7. Print terminal status
         print(f"\n{symbol}")
         print(f"  Price:     {round(current_price, 4)} {quote}")
         print(f"  Signal:    {signal}")
+        print(f"  Reason:    {reason}")
         if action_taken:
             print(f"  Action:    {action_taken}")
         else:
-            print(f"  Action:    HOLD — no trade")
+            print(f"  Action:    No trade")
         print(f"  Portfolio: {round(quote_balance, 2)} {quote} | {round(base_balance, 6)} {base} | Value: {round(portfolio_value, 2)} {quote}")
+        pnl_str = f"+{round(pnl, 2)}" if pnl >= 0 else str(round(pnl, 2))
+        print(f"  P/L:       {pnl_str} {quote} ({round(pnl_pct, 2)}%)")
         print(f"  Trades:    {state[symbol]['trade_count']} total")
+
+        # 8. Collect status data for STATUS.md
+        symbol_statuses.append({
+            "symbol":          symbol,
+            "base":            base,
+            "quote":           quote,
+            "current_price":   current_price,
+            "signal":          signal,
+            "reason":          reason,
+            "quote_balance":   quote_balance,
+            "base_balance":    base_balance,
+            "portfolio_value": portfolio_value,
+            "pnl":             pnl,
+            "pnl_pct":         pnl_pct,
+            "trade_count":     state[symbol]["trade_count"],
+            "action_taken":    action_taken
+        })
 
     print()
 
-    # 8. Save updated state so next run picks up where this one left off
+    # 9. Save state and write STATUS.md
     save_state(state)
+    save_status(now, symbol_statuses)
     print(f"State saved to {STATE_FILE}")
+    print(f"Status written to {STATUS_FILE}")
     print("=" * 60)
 
 
