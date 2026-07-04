@@ -400,29 +400,22 @@ def send_daily_summary(symbol_statuses, timestamp):
     total_pnl_str  = f"+{round(total_pnl, 2)}" if total_pnl >= 0 else str(round(total_pnl, 2))
     total_pct_str  = f"+{round(total_pnl_pct, 2)}%" if total_pnl_pct >= 0 else f"{round(total_pnl_pct, 2)}%"
 
-    lines = [f"📊 *Daily Summary — {timestamp} UTC*
-"]
+    lines = ["\U0001f4ca *Daily Summary - " + timestamp + " UTC*\n"]
 
     for s in symbol_statuses:
-        pnl_str     = f"+{round(s['pnl'], 2)}" if s["pnl"] >= 0 else str(round(s["pnl"], 2))
-        pnl_pct_str = f"+{round(s['pnl_pct'], 2)}%" if s["pnl_pct"] >= 0 else f"{round(s['pnl_pct'], 2)}%"
-        lines.append(
-            f"*{s['symbol']}*
-"
-            f"  Value: {round(s['portfolio_value'], 2)} USDT
-"
-            f"  P/L: {pnl_str} USDT ({pnl_pct_str})
-"
-            f"  Trades: {s['trade_count']}
-"
-        )
+        pnl_str     = "+" + str(round(s["pnl"], 2)) if s["pnl"] >= 0 else str(round(s["pnl"], 2))
+        pnl_pct_str = "+" + str(round(s["pnl_pct"], 2)) + "%" if s["pnl_pct"] >= 0 else str(round(s["pnl_pct"], 2)) + "%"
+        entry = ("*" + s["symbol"] + "*\n"
+                 "  Value: " + str(round(s["portfolio_value"], 2)) + " USDT\n"
+                 "  P/L: " + pnl_str + " USDT (" + pnl_pct_str + ")\n"
+                 "  Trades: " + str(s["trade_count"]) + "\n")
+        lines.append(entry)
 
-    lines.append(f"*TOTAL*")
-    lines.append(f"  Combined value: {round(total_value, 2)} USDT")
-    lines.append(f"  Combined P/L: {total_pnl_str} USDT ({total_pct_str})")
+    lines.append("*TOTAL*")
+    lines.append("  Combined value: " + str(round(total_value, 2)) + " USDT")
+    lines.append("  Combined P/L: " + total_pnl_str + " USDT (" + total_pct_str + ")")
 
-    send_telegram("
-".join(lines))
+    send_telegram("\n".join(lines))
 
 
 # =============================================================================
