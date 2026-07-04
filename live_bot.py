@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import csv
 from datetime import datetime, timezone
 
 BASE_URL = "https://data-api.binance.vision"
@@ -31,8 +32,9 @@ STARTING_QUOTE_BALANCE = 1000.0
 STARTING_BASE_BALANCE  = 0.0
 
 # File paths
-STATE_FILE  = "live_state.json"   # Portfolio balances, persisted between runs
-STATUS_FILE = "STATUS.md"         # Human-readable status, shown on GitHub
+STATE_FILE     = "live_state.json"   # Portfolio balances, persisted between runs
+STATUS_FILE    = "STATUS.md"         # Human-readable status, shown on GitHub
+TRADE_LOG_FILE = "trade_log.csv"     # Full trade history, one row per trade
 
 
 # =============================================================================
@@ -279,6 +281,48 @@ def save_status(timestamp, symbol_statuses):
 
 
 # =============================================================================
+# TRADE LOG
+# =============================================================================
+
+def append_trade_log(timestamp, symbol, action, signal_price, execution_price,
+                     fee_paid, quote_balance, base_balance, portfolio_value, pnl, pnl_pct):
+    """
+    Append one row to the trade log CSV file.
+
+    If the file does not exist yet, it is created with a header row first.
+    Each subsequent trade is appended as a new row — the file is never overwritten,
+    so the full history is always preserved.
+    """
+    file_exists = os.path.exists(TRADE_LOG_FILE)
+
+    with open(TRADE_LOG_FILE, "a", newline="") as f:
+        writer = csv.writer(f)
+
+        # Write header only on first ever trade
+        if not file_exists:
+            writer.writerow([
+                "timestamp", "symbol", "action",
+                "signal_price", "execution_price", "fee_paid",
+                "quote_balance", "base_balance", "portfolio_value",
+                "pnl", "pnl_pct"
+            ])
+
+        writer.writerow([
+            timestamp,
+            symbol,
+            action,
+            round(signal_price, 6),
+            round(execution_price, 6),
+            round(fee_paid, 6),
+            round(quote_balance, 6),
+            round(base_balance, 6),
+            round(portfolio_value, 6),
+            round(pnl, 6),
+            round(pnl_pct, 4)
+        ])
+
+
+# =============================================================================
 # MAIN TICK
 # =============================================================================
 
@@ -344,7 +388,25 @@ def run_tick():
         pnl             = portfolio_value - STARTING_QUOTE_BALANCE
         pnl_pct         = (pnl / STARTING_QUOTE_BALANCE) * 100
 
-        # 7. Print terminal status
+        # 7. Log the trade if one was made
+        if action_taken:
+            execution_price = current_price * (1 + SLIPPAGE_RATE) if signal == "BUY" else current_price * (1 - SLIPPAGE_RATE)
+            fee_paid        = (STARTING_QUOTE_BALANCE * FEE_RATE) if signal == "BUY" else (base_balance * execution_price * FEE_RATE)
+            append_trade_log(
+                timestamp       = now,
+                symbol          = symbol,
+                action          = signal,
+                signal_price    = current_price,
+                execution_price = execution_price,
+                fee_paid        = fee_paid,
+                quote_balance   = quote_balance,
+                base_balance    = base_balance,
+                portfolio_value = portfolio_value,
+                pnl             = pnl,
+                pnl_pct         = pnl_pct
+            )
+
+        # 8. Print terminal status
         print(f"\n{symbol}")
         print(f"  Price:     {round(current_price, 4)} {quote}")
         print(f"  Signal:    {signal}")
@@ -358,7 +420,7 @@ def run_tick():
         print(f"  P/L:       {pnl_str} {quote} ({round(pnl_pct, 2)}%)")
         print(f"  Trades:    {state[symbol]['trade_count']} total")
 
-        # 8. Collect status data for STATUS.md
+        # 9. Collect status data for STATUS.md
         symbol_statuses.append({
             "symbol":          symbol,
             "base":            base,
@@ -377,11 +439,12 @@ def run_tick():
 
     print()
 
-    # 9. Save state and write STATUS.md
+    # 10. Save state, write STATUS.md and confirm trade log
     save_state(state)
     save_status(now, symbol_statuses)
     print(f"State saved to {STATE_FILE}")
     print(f"Status written to {STATUS_FILE}")
+    print(f"Trade log: {TRADE_LOG_FILE}")
     print("=" * 60)
 
 
