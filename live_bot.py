@@ -36,6 +36,11 @@ STATE_FILE     = "live_state.json"   # Portfolio balances, persisted between run
 STATUS_FILE    = "STATUS.md"         # Human-readable status, shown on GitHub
 TRADE_LOG_FILE = "trade_log.csv"     # Full trade history, one row per trade
 
+# Telegram credentials — loaded from environment variables set by GitHub Actions.
+# Never hardcode these values in the code.
+TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+
 
 # =============================================================================
 # DATA FETCHING
@@ -323,6 +328,110 @@ def append_trade_log(timestamp, symbol, action, signal_price, execution_price,
 
 
 # =============================================================================
+# TELEGRAM NOTIFICATIONS
+# =============================================================================
+
+def send_telegram(message):
+    """
+    Send a message to Telegram via the bot API.
+
+    Uses the TELEGRAM_TOKEN and TELEGRAM_CHAT_ID environment variables
+    set by GitHub Actions from the repository secrets.
+
+    If the credentials are not set (e.g. running locally without secrets),
+    the function skips silently so the bot still runs without crashing.
+    """
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        print("Telegram credentials not set — skipping notification")
+        return
+
+    url  = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    data = {
+        "chat_id":    TELEGRAM_CHAT_ID,
+        "text":       message,
+        "parse_mode": "Markdown"
+    }
+
+    try:
+        response = requests.post(url, data=data, timeout=10)
+        response.raise_for_status()
+        print("Telegram notification sent")
+    except Exception as e:
+        print(f"Telegram notification failed: {e}")
+
+
+def send_trade_alert(symbol, action, signal_price, execution_price, portfolio_value, pnl, pnl_pct):
+    """
+    Send an immediate Telegram alert when a trade fires.
+    Called right after a BUY or SELL is simulated.
+    """
+    action_emoji = "🟢" if action == "BUY" else "🔴"
+    pnl_str      = f"+{round(pnl, 2)}" if pnl >= 0 else str(round(pnl, 2))
+    pnl_pct_str  = f"+{round(pnl_pct, 2)}%" if pnl_pct >= 0 else f"{round(pnl_pct, 2)}%"
+
+    message = (
+        f"{action_emoji} *TRADE EXECUTED — {symbol}*
+
+"
+        f"Action: *{action}*
+"
+        f"Signal price: {round(signal_price, 4)} USDT
+"
+        f"Execution price: {round(execution_price, 4)} USDT
+"
+        f"Portfolio value: {round(portfolio_value, 2)} USDT
+"
+        f"P/L: {pnl_str} USDT ({pnl_pct_str})"
+    )
+    send_telegram(message)
+
+
+def send_daily_summary(symbol_statuses, timestamp):
+    """
+    Send a daily performance summary to Telegram.
+    Called once per day — when the hour is 08:00 UTC.
+
+    Summarises portfolio value and P/L for each symbol,
+    plus a combined total across all symbols.
+    """
+    # Only send at 08:00 UTC
+    current_hour = datetime.now(timezone.utc).hour
+    if current_hour != 8:
+        return
+
+    total_value    = sum(s["portfolio_value"] for s in symbol_statuses)
+    total_start    = STARTING_QUOTE_BALANCE * len(symbol_statuses)
+    total_pnl      = total_value - total_start
+    total_pnl_pct  = (total_pnl / total_start) * 100
+    total_pnl_str  = f"+{round(total_pnl, 2)}" if total_pnl >= 0 else str(round(total_pnl, 2))
+    total_pct_str  = f"+{round(total_pnl_pct, 2)}%" if total_pnl_pct >= 0 else f"{round(total_pnl_pct, 2)}%"
+
+    lines = [f"📊 *Daily Summary — {timestamp} UTC*
+"]
+
+    for s in symbol_statuses:
+        pnl_str     = f"+{round(s['pnl'], 2)}" if s["pnl"] >= 0 else str(round(s["pnl"], 2))
+        pnl_pct_str = f"+{round(s['pnl_pct'], 2)}%" if s["pnl_pct"] >= 0 else f"{round(s['pnl_pct'], 2)}%"
+        lines.append(
+            f"*{s['symbol']}*
+"
+            f"  Value: {round(s['portfolio_value'], 2)} USDT
+"
+            f"  P/L: {pnl_str} USDT ({pnl_pct_str})
+"
+            f"  Trades: {s['trade_count']}
+"
+        )
+
+    lines.append(f"*TOTAL*")
+    lines.append(f"  Combined value: {round(total_value, 2)} USDT")
+    lines.append(f"  Combined P/L: {total_pnl_str} USDT ({total_pct_str})")
+
+    send_telegram("
+".join(lines))
+
+
+# =============================================================================
 # MAIN TICK
 # =============================================================================
 
@@ -406,7 +515,20 @@ def run_tick():
                 pnl_pct         = pnl_pct
             )
 
-        # 8. Print terminal status
+        # 8. Send Telegram trade alert if a trade fired
+        if action_taken:
+            execution_price_alert = current_price * (1 + SLIPPAGE_RATE) if signal == "BUY" else current_price * (1 - SLIPPAGE_RATE)
+            send_trade_alert(
+                symbol          = symbol,
+                action          = signal,
+                signal_price    = current_price,
+                execution_price = execution_price_alert,
+                portfolio_value = portfolio_value,
+                pnl             = pnl,
+                pnl_pct         = pnl_pct
+            )
+
+        # 9. Print terminal status
         print(f"\n{symbol}")
         print(f"  Price:     {round(current_price, 4)} {quote}")
         print(f"  Signal:    {signal}")
@@ -420,7 +542,7 @@ def run_tick():
         print(f"  P/L:       {pnl_str} {quote} ({round(pnl_pct, 2)}%)")
         print(f"  Trades:    {state[symbol]['trade_count']} total")
 
-        # 9. Collect status data for STATUS.md
+        # 10. Collect status data for STATUS.md
         symbol_statuses.append({
             "symbol":          symbol,
             "base":            base,
@@ -439,7 +561,10 @@ def run_tick():
 
     print()
 
-    # 10. Save state, write STATUS.md and confirm trade log
+    # 11. Send daily summary if it is 08:00 UTC
+    send_daily_summary(symbol_statuses, now)
+
+    # 12. Save state, write STATUS.md and confirm trade log
     save_state(state)
     save_status(now, symbol_statuses)
     print(f"State saved to {STATE_FILE}")
