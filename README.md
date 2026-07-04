@@ -187,7 +187,7 @@ The live bot runs automatically every ~10 minutes via GitHub Actions — no manu
 - [x] Persistent portfolio state across runs
 - [x] Automated cloud deployment via GitHub Actions
 - [x] Live status dashboard (STATUS.md) updated every tick
-- [ ] Trade history log (CSV)
+- [x] Trade history log (CSV)
 - [ ] Performance monitoring and alerts
 - [ ] Sentiment analysis layer (Polymarket, X/Twitter)
 - [ ] Stock market equivalent using Yahoo Finance
