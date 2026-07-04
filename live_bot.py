@@ -222,7 +222,7 @@ def save_status(timestamp, symbol_statuses):
     lines.append("")
     lines.append(f"**Last updated:** {timestamp} UTC")
     lines.append("")
-    lines.append(f"**Interval:** {INTERVAL} | **Breakout period:** {BREAKOUT_PERIOD} candles | **Fee:** {FEE_RATE*100}% | **Slippage:** {SLIPPAGE_RATE*100}%")
+    lines.append(f"**Candle size:** {INTERVAL} | **Runs every:** ~10 minutes | **Breakout period:** {BREAKOUT_PERIOD} candles | **Fee:** {FEE_RATE*100}% | **Slippage:** {SLIPPAGE_RATE*100}%")
     lines.append("")
     lines.append("---")
     lines.append("")
