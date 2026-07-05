@@ -1,0 +1,2 @@
+timestamp,symbol,action,signal_price,execution_price,fee_paid,quote_balance,base_balance,portfolio_value,pnl,pnl_pct
+2026-07-05 09:57:55,ETHUSDT,SELL,1758.33,1757.450835,0.0,1038.530751,0.0,1038.530751,38.530751,3.8531
