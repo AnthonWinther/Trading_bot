@@ -5,8 +5,8 @@
     "trade_count": 16
   },
   "ETHUSDT": {
-    "quote_balance": 1087.7060992141658,
-    "base_balance": 0.0,
-    "trade_count": 18
+    "quote_balance": 0.0,
+    "base_balance": 0.5816443194201275,
+    "trade_count": 19
   }
 }
