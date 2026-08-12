@@ -1,6 +1,6 @@
 # Live Bot Status
 
-**Last updated:** 2026-08-12 11:25:55 UTC
+**Last updated:** 2026-08-12 12:08:38 UTC
 
 **Candle size:** 1h | **Runs every:** ~10 minutes | **Breakout period:** 20 candles | **Fee:** 0.1% | **Slippage:** 0.05%
 
@@ -10,13 +10,13 @@
 
 | | |
 |---|---|
-| **Current price** | 64168.5 USDT |
+| **Current price** | 64290.45 USDT |
 | **Signal** | 🟢 BUY |
-| **Reason** | Price 64168.5 broke above 20-candle high of 64143.36 |
+| **Reason** | Price 64290.45 broke above 20-candle high of 64240.04 |
 | **USDT balance** | 0.0 |
 | **BTC balance** | 0.014459 |
-| **Portfolio value** | 927.81 USDT |
-| **P/L** | -72.19 USDT (-7.22%) |
+| **Portfolio value** | 929.57 USDT |
+| **P/L** | -70.43 USDT (-7.04%) |
 | **Total trades** | 33 |
 
 ---
@@ -25,13 +25,13 @@
 
 | | |
 |---|---|
-| **Current price** | 1911.95 USDT |
+| **Current price** | 1916.56 USDT |
 | **Signal** | 🟢 BUY |
-| **Reason** | Price 1911.95 broke above 20-candle high of 1909.17 |
+| **Reason** | Price 1916.56 broke above 20-candle high of 1915.57 |
 | **USDT balance** | 0.0 |
 | **ETH balance** | 0.516623 |
-| **Portfolio value** | 987.76 USDT |
-| **P/L** | -12.24 USDT (-1.22%) |
+| **Portfolio value** | 990.14 USDT |
+| **P/L** | -9.86 USDT (-0.99%) |
 | **Total trades** | 35 |
 
 ---
