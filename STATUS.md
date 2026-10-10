@@ -1,6 +1,6 @@
 # Live Bot Status
 
-**Last updated:** 2026-10-09 23:34:03 UTC
+**Last updated:** 2026-10-10 02:41:58 UTC
 
 **Candle size:** 1h | **Runs every:** ~10 minutes | **Breakout period:** 20 candles | **Fee:** 0.1% | **Slippage:** 0.05%
 
@@ -10,13 +10,13 @@
 
 | | |
 |---|---|
-| **Current price** | 82622.03 USDT |
+| **Current price** | 82640.0 USDT |
 | **Signal** | ⚪ HOLD |
-| **Reason** | Price 82622.03 within range (82250.01 — 83246.82) |
+| **Reason** | Price 82640.0 within range (82337.03 — 83246.82) |
 | **USDT balance** | 0.0 |
 | **BTC balance** | 0.012579 |
-| **Portfolio value** | 1039.34 USDT |
-| **P/L** | +39.34 USDT (+3.93%) |
+| **Portfolio value** | 1039.57 USDT |
+| **P/L** | +39.57 USDT (+3.96%) |
 | **Total trades** | 59 |
 
 ---
@@ -25,9 +25,9 @@
 
 | | |
 |---|---|
-| **Current price** | 2488.62 USDT |
+| **Current price** | 2494.09 USDT |
 | **Signal** | ⚪ HOLD |
-| **Reason** | Price 2488.62 within range (2477.54 — 2506.61) |
+| **Reason** | Price 2494.09 within range (2477.54 — 2506.61) |
 | **USDT balance** | 1190.24 |
 | **ETH balance** | 0.0 |
 | **Portfolio value** | 1190.24 USDT |
