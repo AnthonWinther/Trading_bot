@@ -1,8 +1,8 @@
 {
   "BTCUSDT": {
-    "quote_balance": 1027.6549833693914,
-    "base_balance": 0.0,
-    "trade_count": 60
+    "quote_balance": 0.0,
+    "base_balance": 0.012251168641484724,
+    "trade_count": 61
   },
   "ETHUSDT": {
     "quote_balance": 1185.1336197324827,
